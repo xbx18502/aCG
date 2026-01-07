@@ -98,3 +98,8 @@ if (ZLIB_FOUND)
   target_link_directories(${PROJECT_NAME} PRIVATE ${ZLIB_LIBRARY_DIR})
   target_link_libraries(${PROJECT_NAME} z)
 endif ()
+
+# Install the CUDA binary
+include(GNUInstallDirs)
+install(TARGETS ${PROJECT_NAME}
+        RUNTIME DESTINATION ${CMAKE_SOURCE_DIR}/bin)
