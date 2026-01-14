@@ -45,7 +45,7 @@
 #include "acg/graph.h"
 #include "acg/halo.h"
 #include "acg/mtxfile.h"
-#include "acg/nvshmem.h"
+#include "acg/acg_nvshmem.h"
 #include "acg/symcsrmatrix.h"
 #include "acg/time.h"
 #include "acg/vector.h"

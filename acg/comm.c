@@ -32,7 +32,7 @@
 #include "acg/config.h"
 #include "acg/error.h"
 #include "acg/comm.h"
-#include "acg/nvshmem.h"
+#include "acg/acg_nvshmem.h"
 
 #ifdef ACG_HAVE_MPI
 #include <mpi.h>

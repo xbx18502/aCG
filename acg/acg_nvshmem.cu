@@ -30,7 +30,7 @@
  */
 
 #include "acg/config.h"
-#include "acg/nvshmem.h"
+#include "acg/acg_nvshmem.h"
 
 #if defined(ACG_HAVE_CUDA)
 #include <cuda_runtime_api.h>

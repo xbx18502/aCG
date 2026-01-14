@@ -63,8 +63,8 @@ set(PROJECT_SOURCES
 	../acg/metis.h
 	../acg/mtxfile.c
 	../acg/mtxfile.h
-	../acg/nvshmem.cu
-	../acg/nvshmem.h
+	../acg/acg_nvshmem.cu
+	../acg/acg_nvshmem.h
 	../acg/prefixsum.c
 	../acg/prefixsum.h
 	../acg/sort.c
@@ -237,6 +237,12 @@ if (NVSHMEM_FOUND)
     target_link_libraries(${PROJECT_NAME} -lnvidia-ml)
   endif()
 endif ()
+message(STATUS "NVSHMEM_INCLUDE_DIRS='${NVSHMEM_INCLUDE_DIRS}'")
+message(STATUS "NVSHMEM_INCLUDE_DIR='${NVSHMEM_INCLUDE_DIR}'")
+message(STATUS "NCCL_INCLUDE_DIR='${NCCL_INCLUDE_DIR}'")
+message(STATUS "NCCL_INCLUDE_DIRS='${NCCL_INCLUDE_DIRS}'")
+message(STATUS "CMAKE_CUDA_IMPLICIT_INCLUDE_DIRECTORIES='${CMAKE_CUDA_IMPLICIT_INCLUDE_DIRECTORIES}'")
+
 if (ZLIB_FOUND)
   target_include_directories(${PROJECT_NAME} PRIVATE ${ZLIB_INCLUDE_DIRS})
   target_link_directories(${PROJECT_NAME} PRIVATE ${ZLIB_LIBRARY_DIR})
