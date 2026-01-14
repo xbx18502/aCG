@@ -60,6 +60,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+#ifdef ACG_HAVE_NVTX
+    #include <nvToolsExt.h>
+#endif
 /*
  * profiling
  */
@@ -70,6 +74,7 @@
 #define acgEventRecord(event, stream) cudaEventRecord((event), (stream))
 #else
 #define acgEventRecord(event, stream)
+
 #endif
 
 /*
@@ -762,8 +767,10 @@ int acgsolvercuda_solvempi(
     if (err) { if (errcode) *errcode = err; gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUBLAS; }
     acgEventRecord(tcopy[2*ncopy+1], 0); ncopy++; cg->ncopy++;
     cg->Bcopy += (b->num_nonzeros-b->num_ghost_nonzeros)*(sizeof(*cg->r.x)+sizeof(*b->x));
-
     if (commsize > 1) {
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePushA("halo exchange + SpMV for initial residual");
+        #endif
         err = acghalo_exchange_cuda_begin(
             cg->halo, cg->haloexchange,
             x->num_nonzeros, d_x, ACG_DOUBLE,
@@ -790,6 +797,9 @@ int acgsolvercuda_solvempi(
         cg->nhalomsgs += cg->halo->nrecipients;
         err = cudaEventRecord(xreceived, commstream);
         if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }
+        #ifdef ACG_HAVE_NVTX
+            nvtxRangePop();
+        #endif
         err = cudaStreamWaitEvent(stream, xreceived, 0);
         if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }
         err = cusparseSpMV(
@@ -845,6 +855,9 @@ int acgsolvercuda_solvempi(
     for (int k = 0; k < maxits; k++) {
         /* compute t = Ap */
         if (commsize > 1) {
+            #ifdef ACG_HAVE_NVTX
+            nvtxRangePushA("iter: halo(p) exchange");
+            #endif
             err = cudaStreamWaitEvent(commstream, preadytosend, 0);
             if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }
             err = acghalo_exchange_cuda_begin(
@@ -872,6 +885,9 @@ int acgsolvercuda_solvempi(
             cg->Bhalo += cg->halo->sendsize*sizeof(*cg->p.x);
             cg->nhalomsgs += cg->halo->nrecipients;
             err = cudaEventRecord(preceived, commstream);
+            #ifdef ACG_HAVE_NVTX
+            nvtxRangePop();
+            #endif
             if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }
             err = cudaStreamWaitEvent(stream, preceived, 0);
             if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }
@@ -890,13 +906,22 @@ int acgsolvercuda_solvempi(
             + cg->p.num_nonzeros*sizeof(*cg->p.x);
 
         /* compute (p,Ap) */
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePushA("dot(p,t)");
+        #endif
         acgEventRecord(tdot[2*ndot+0], 0);
         err = cublasDdot(cublas, cg->p.num_nonzeros-cg->p.num_ghost_nonzeros, d_p, 1, d_t, 1, d_pdott);
         if (err) { if (errcode) *errcode = err; gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUBLAS; }
         acgEventRecord(tdot[2*ndot+1], 0); ndot++; cg->ndot++;
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePop();
+        #endif
         cg->nflops += 2*(cg->p.num_nonzeros-cg->p.num_ghost_nonzeros);
         cg->Bdot += (cg->p.num_nonzeros-cg->p.num_ghost_nonzeros)*(sizeof(*cg->p.x)+sizeof(*cg->t.x));
         if (commsize > 1) {
+            #ifdef ACG_HAVE_NVTX
+            nvtxRangePushA("allreduce(p·Ap)");
+            #endif
             acgEventRecord(tallreduce[2*nallreduce+0], 0);
 #ifndef HOST_ALLREDUCE
             err = acgcomm_allreduce(ACG_IN_PLACE, d_pdott, 1, ACG_DOUBLE, ACG_SUM, stream, comm, errcode);
@@ -909,6 +934,9 @@ int acgsolvercuda_solvempi(
 #endif
             acgEventRecord(tallreduce[2*nallreduce+1], 0); nallreduce++; cg->nallreduce++;
             cg->Ballreduce += sizeof(*d_pdott);
+            #ifdef ACG_HAVE_NVTX
+            nvtxRangePop();
+            #endif
         }
         err = cudaMemcpyAsync(d_rnrm2sqr_prev, d_rnrm2sqr, sizeof(*d_rnrm2sqr), cudaMemcpyDeviceToDevice, stream);
         if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }
@@ -937,11 +965,17 @@ int acgsolvercuda_solvempi(
         cg->Bnrm2 += (cg->r.num_nonzeros-cg->r.num_ghost_nonzeros)*sizeof(*cg->r.x);
 #ifndef HOST_ALLREDUCE
         if (commsize > 1) {
+            #ifdef ACG_HAVE_NVTX
+            nvtxRangePushA("allreduce(r·r)");
+            #endif
             acgEventRecord(tallreduce[2*nallreduce+0], 0);
             err = acgcomm_allreduce(ACG_IN_PLACE, d_rnrm2sqr, 1, ACG_DOUBLE, ACG_SUM, stream, comm, errcode);
             if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return err; }
             acgEventRecord(tallreduce[2*nallreduce+1], 0); nallreduce++; cg->nallreduce++;
             cg->Ballreduce += sizeof(*rnrm2sqr);
+            #ifdef ACG_HAVE_NVTX
+            nvtxRangePop();
+            #endif
         }
         err = cudaEventRecord(rnrm2sqrready, stream);
         if (err) { gettime(&t1); cg->tsolve += elapsed(t0,t1); return ACG_ERR_CUDA; }

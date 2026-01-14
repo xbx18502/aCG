@@ -3,3 +3,5 @@
 *.stats
 *.out
 *.mtx
+*.nsys-rep
+/.cache

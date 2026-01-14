@@ -43,7 +43,9 @@
 #ifdef ACG_HAVE_RCCL
 #include <rccl/rccl.h>
 #endif
-
+#ifdef ACG_HAVE_NVTX
+    #include <nvToolsExt.h>
+#endif
 #include <errno.h>
 
 #include <stdio.h>
@@ -361,9 +363,21 @@ int acgcomm_allreduce(
     if (comm->type == acgcomm_null) return ACG_SUCCESS;
     else if (comm->type == acgcomm_mpi) {
 #if defined(ACG_HAVE_MPI)
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePushA("sync wait for MPI_Allreduce");
+        #endif
         cudaStreamSynchronize(stream);
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePop();
+        #endif
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePushA("MPI_Allreduce");
+        #endif
         err = MPI_Allreduce(
             src, dst, count, acgdatatype_mpi(datatype), acgop_mpi(op), comm->mpicomm);
+        #ifdef ACG_HAVE_NVTX
+        nvtxRangePop();
+        #endif
         if (err) { if (errcode) *errcode = err; return ACG_ERR_MPI; }
 #else
         return ACG_ERR_MPI_NOT_SUPPORTED;
