@@ -2,6 +2,7 @@ CompileFlags:
   Add:
     - -I/home/app/nvhpc/24.11/Linux_x86_64/24.11/comm_libs/12.6/nvshmem/include
     - -I/home/app/nvhpc/24.11/Linux_x86_64/24.11/comm_libs/nccl/include
+    - -I/home/app/nvhpc/24.11/Linux_x86_64/24.11/comm_libs/12.6/hpcx/hpcx-2.20/ompi/include
     - --cuda-path=/home/app/nvhpc/24.11/Linux_x86_64/24.11/cuda/12.6
     - --cuda-gpu-arch=sm_80
     - -D__CUDA_ARCH__=800
